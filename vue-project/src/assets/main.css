@@ -1,23 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
-:root { font-family: 'Noto Sans Thai', sans-serif; color: #173e32; background: #f3f5ef; font-synthesis: none; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-button { font: inherit; cursor: pointer; width: 100%; border: 0; border-radius: 14px; background: #087d46; color: white; padding: 15px 20px; font-weight: 600; }
-button:hover { background: #066739; }
-button:focus-visible { outline: 3px solid #c79d34; outline-offset: 4px; }
-.page { max-width: 520px; margin: auto; padding: 30px 22px; }
-.brand { font-weight: 700; letter-spacing: 2px; margin-bottom: 35px; }
-.brand span { font-size: 12px; letter-spacing: 0; font-weight: 400; }
-.card { background: #fff; border: 1px solid #dfe5da; border-radius: 26px; padding: 34px 26px; box-shadow: 0 15px 50px #24473508; }
-.eyebrow { color: #687e63; font-size: 13px; }
-h1 { font-size: clamp(38px, 9vw, 50px); line-height: 1.3; margin: 18px 0; letter-spacing: -1px; }
-.intro { line-height: 1.9; color: #5a6b62; margin-bottom: 32px; }
-.muted, footer { color: #6a756e; font-size: 12px; line-height: 1.8; }
-footer { text-align: center; margin-top: 24px; }
-.error { color: #a03224; background: #fff3ed; padding: 14px; border-radius: 12px; }
-.notice { padding: 20px 0; }
-.account { border-top: 1px solid #e5ebe1; padding-top: 22px; }
-.check { display: inline-grid; place-items: center; border-radius: 50%; background: #e6f6e9; width: 38px; height: 38px; }
-h2 { font-size: 20px; overflow-wrap: anywhere; }
-.secondary { margin-top: 12px; background: #edf3eb; color: #173e32; }
-.secondary:hover { background: #dfeadc; }
+:root { font-family:'Noto Sans Thai',sans-serif; color:#173e32; background:#f3f5ef; font-synthesis:none; }
+* { box-sizing:border-box } body { margin:0; min-width:320px } button { font:inherit }
+.page { max-width:620px; min-height:100vh; margin:auto; padding:24px 20px 36px }
+.topbar { min-height:48px; display:flex; align-items:center; justify-content:space-between; margin-bottom:28px }
+.topbar div { display:flex; flex-direction:column; letter-spacing:2px }.topbar span { font-size:11px; font-weight:400; letter-spacing:0 }
+.avatar { width:42px; height:42px; object-fit:cover; border-radius:50%; border:2px solid white; box-shadow:0 4px 16px #173e3220 }
+.icon-button { border:0; background:#e4ebe1; width:42px; height:42px; border-radius:50%; color:#173e32; font-size:22px; cursor:pointer }
+.login-card { background:white; border:1px solid #dfe5da; border-radius:26px; padding:34px 26px; box-shadow:0 15px 50px #24473508 }
+.eyebrow,.greeting span { color:#687e63; font-size:13px }.login-card h1 { font-size:clamp(38px,9vw,50px); line-height:1.3; margin:18px 0 }
+.intro { line-height:1.9; color:#5a6b62; margin-bottom:28px }.primary { width:100%; border:0; border-radius:14px; background:#087d46; color:white; padding:15px; font-weight:600; cursor:pointer }
+.greeting { display:flex; gap:7px; margin-bottom:8px }.section-title { font-size:30px; margin:0 0 22px }
+.store-list,.product-list { display:grid; gap:14px }.store-card,.product-card { width:100%; border:1px solid #dfe5da; background:white; border-radius:20px; padding:18px; display:flex; align-items:center; text-align:left; box-shadow:0 8px 24px #24473508 }
+.store-card { cursor:pointer }.store-card:hover { border-color:#92ae9d; transform:translateY(-1px) }.store-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:15px; background:#e5f2e8; font-size:26px }
+.store-info { display:flex; flex-direction:column; gap:5px; flex:1; margin-left:14px }.store-info small { color:#c06e24 }.arrow { font-size:30px; color:#8a9c92 }
+.product-card { justify-content:space-between }.product-card h2 { font-size:17px; margin:0 0 6px }.product-card p { margin:0; color:#087d46; font-weight:700 }
+.stock { font-size:12px; background:#e5f2e8; padding:6px 10px; border-radius:20px }.stock.out { background:#fee9e6; color:#a03224 }
+.empty,.notice { padding:32px 16px; text-align:center; color:#6a756e; background:#ffffff88; border-radius:18px }.error { color:#a03224; background:#fff3ed; padding:14px; border-radius:12px }
+footer { text-align:center; color:#7b877f; font-size:11px; margin-top:30px }
+@media (max-width:480px) { .page { padding:18px 14px 28px }.section-title { font-size:26px } }
