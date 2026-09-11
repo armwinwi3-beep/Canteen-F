@@ -34,7 +34,7 @@ async function refreshOrders(){try{await load()}catch(e){error.value=e instanceo
 function startOrderRefresh(){if(orderTimer)window.clearInterval(orderTimer);orderTimer=window.setInterval(()=>{if(store.value&&!busy.value)refreshOrders()},8000)}
 async function login() {
   busy.value=true; error.value=''
-  try { saveSession(await api('/staff/login',{method:'POST',body:JSON.stringify({email:`${username.value.trim().toLowerCase()}@btadapp.com`,password:password.value})},false)); password.value=''; await load(); startOrderRefresh() }
+  try { saveSession(await api('/staff/login',{method:'POST',body:JSON.stringify({username:username.value,password:password.value})},false)); password.value=''; await load(); startOrderRefresh() }
   catch(e){ error.value=e instanceof Error?e.message:'เข้าสู่ระบบไม่สำเร็จ'; saveSession(null) } finally { busy.value=false }
 }
 function resetForm(){ editingId.value=null; name.value=''; price.value=null; cost.value=0; stock.value=0; tracking.value=false }

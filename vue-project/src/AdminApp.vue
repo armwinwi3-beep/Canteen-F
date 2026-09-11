@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-type Staff = { email: string; role: string }
+type Staff = { username: string; role: string }
 type Store = { id: string; name: string; is_open: boolean; email: string | null }
 type Session = { access_token: string; refresh_token: string; expires_in: number }
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
-const email = ref('admin'), password = ref('')
+const loginUsername = ref('admin'), password = ref('')
 const staff = ref<Staff | null>(null), stores = ref<Store[]>([])
-const storeName = ref(''), username = ref(''), merchantPassword = ref('')
+const storeName = ref(''), storeUsername = ref(''), merchantPassword = ref('')
 const busy = ref(false), message = ref(''), error = ref('')
 
 function session(): Session | null {
@@ -40,7 +40,7 @@ async function load() {
 async function login() {
   busy.value = true; error.value = ''
   try {
-    save(await api('/staff/login', { method: 'POST', body: JSON.stringify({ email: email.value.includes('@') ? email.value : `${email.value}@btadapp.com`, password: password.value }) }, false))
+    save(await api('/staff/login', { method: 'POST', body: JSON.stringify({ username: loginUsername.value, password: password.value }) }, false))
     password.value = ''; await load()
   } catch (e) { error.value = e instanceof Error ? e.message : 'เข้าสู่ระบบไม่สำเร็จ' }
   finally { busy.value = false }
@@ -49,9 +49,9 @@ async function createStore() {
   busy.value = true; error.value = ''; message.value = ''
   try {
     await api('/staff/stores', { method: 'POST', body: JSON.stringify({
-      store_name: storeName.value, username: username.value, password: merchantPassword.value,
+      store_name: storeName.value, username: storeUsername.value, password: merchantPassword.value,
     }) })
-    storeName.value = ''; username.value = ''; merchantPassword.value = ''
+    storeName.value = ''; storeUsername.value = ''; merchantPassword.value = ''
     message.value = 'สร้างบัญชีร้านค้าเรียบร้อยแล้ว'; await load()
   } catch (e) { error.value = e instanceof Error ? e.message : 'สร้างร้านค้าไม่สำเร็จ' }
   finally { busy.value = false }
@@ -82,7 +82,7 @@ onMounted(async () => {
     <section v-if="!staff" class="admin-login card">
       <span class="eyebrow">สำหรับผู้ดูแลระบบ</span><h1>เข้าสู่ระบบแอดมิน</h1>
       <form @submit.prevent="login">
-        <label>ชื่อผู้ใช้<input v-model.trim="email" type="text" autocomplete="username" required /></label>
+        <label>ชื่อผู้ใช้<input v-model.trim="loginUsername" type="text" autocomplete="username" required /></label>
         <label>รหัสผ่าน<input v-model="password" type="password" autocomplete="current-password" minlength="8" required /></label>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <button class="primary" :disabled="busy">{{ busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ' }}</button>
@@ -90,7 +90,7 @@ onMounted(async () => {
     </section>
     <template v-else>
       <section class="admin-title">
-        <div><span class="eyebrow">เข้าสู่ระบบด้วย {{ staff.email }}</span><h1>จัดการร้านค้า</h1></div>
+        <div><span class="eyebrow">เข้าสู่ระบบด้วยชื่อผู้ใช้ {{ staff.username }}</span><h1>จัดการร้านค้า</h1></div>
         <span class="count">{{ stores.length }} ร้าน</span>
       </section>
       <p v-if="message" class="success">{{ message }}</p>
@@ -100,7 +100,7 @@ onMounted(async () => {
           <h2>เพิ่มบัญชีร้านค้า</h2><p>กำหนดชื่อผู้ใช้และรหัสผ่านเริ่มต้นให้เจ้าของร้าน</p>
           <form @submit.prevent="createStore">
             <label>ชื่อร้านค้า<input v-model.trim="storeName" maxlength="100" required placeholder="เช่น ร้านข้าวแกงป้าสม" /></label>
-            <label>ชื่อผู้ใช้<input v-model.trim="username" minlength="3" maxlength="32" pattern="[a-z0-9][a-z0-9._-]{2,31}" required placeholder="เช่น somshop" /><small>อังกฤษตัวเล็ก ตัวเลข จุด ขีดกลาง หรือขีดล่าง</small></label>
+            <label>ชื่อผู้ใช้<input v-model.trim="storeUsername" minlength="3" maxlength="32" pattern="[a-z0-9][a-z0-9._-]{2,31}" required placeholder="เช่น somshop" /><small>อังกฤษตัวเล็ก ตัวเลข จุด ขีดกลาง หรือขีดล่าง</small></label>
             <label>รหัสผ่านเริ่มต้น<input v-model="merchantPassword" type="password" minlength="8" required autocomplete="new-password" /></label>
             <button class="primary" :disabled="busy">{{ busy ? 'กำลังบันทึก…' : 'สร้างร้านค้า' }}</button>
           </form>
@@ -108,8 +108,8 @@ onMounted(async () => {
         <section class="card store-admin-list">
           <h2>ร้านค้าทั้งหมด</h2>
           <div v-if="stores.length === 0" class="empty">ยังไม่มีร้านค้า</div>
-          <article v-for="store in stores" :key="store.id" class="admin-store-row">
-            <div><strong>{{ store.name }}</strong><small>{{ store.email }}</small></div>
+            <article v-for="store in stores" :key="store.id" class="admin-store-row">
+            <div><strong>{{ store.name }}</strong><small>ชื่อผู้ใช้ร้านค้า: {{ store.email?.split('@')[0] }}</small></div>
             <button :class="['status-button', { closed: !store.is_open }]" :disabled="busy" @click="toggle(store)">
               {{ store.is_open ? 'เปิดร้าน' : 'ปิดร้าน' }}
             </button>
