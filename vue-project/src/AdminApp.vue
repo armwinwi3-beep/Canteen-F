@@ -5,7 +5,7 @@ type Store = { id: string; name: string; is_open: boolean; email: string | null 
 type Session = { access_token: string; refresh_token: string; expires_in: number }
 
 const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
-const email = ref('admin@btadapp.com'), password = ref('')
+const email = ref('admin'), password = ref('')
 const staff = ref<Staff | null>(null), stores = ref<Store[]>([])
 const storeName = ref(''), username = ref(''), merchantPassword = ref('')
 const busy = ref(false), message = ref(''), error = ref('')
@@ -40,7 +40,7 @@ async function load() {
 async function login() {
   busy.value = true; error.value = ''
   try {
-    save(await api('/staff/login', { method: 'POST', body: JSON.stringify({ email: email.value, password: password.value }) }, false))
+    save(await api('/staff/login', { method: 'POST', body: JSON.stringify({ email: email.value.includes('@') ? email.value : `${email.value}@btadapp.com`, password: password.value }) }, false))
     password.value = ''; await load()
   } catch (e) { error.value = e instanceof Error ? e.message : 'เข้าสู่ระบบไม่สำเร็จ' }
   finally { busy.value = false }
@@ -82,7 +82,7 @@ onMounted(async () => {
     <section v-if="!staff" class="admin-login card">
       <span class="eyebrow">สำหรับผู้ดูแลระบบ</span><h1>เข้าสู่ระบบแอดมิน</h1>
       <form @submit.prevent="login">
-        <label>อีเมล<input v-model.trim="email" type="email" autocomplete="username" required /></label>
+        <label>ชื่อผู้ใช้<input v-model.trim="email" type="text" autocomplete="username" required /></label>
         <label>รหัสผ่าน<input v-model="password" type="password" autocomplete="current-password" minlength="8" required /></label>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <button class="primary" :disabled="busy">{{ busy ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ' }}</button>
@@ -119,4 +119,5 @@ onMounted(async () => {
     </template>
   </main>
 </template>
+
 
