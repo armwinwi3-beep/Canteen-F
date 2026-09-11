@@ -26,9 +26,10 @@ async function api(path: string, options: { method?: string; body?: string } = {
     method: options.method || 'GET', body: options.body,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15000),
   })
+  const data = await response.json().catch(() => ({}))
   if (response.status === 401) throw new Error('การเข้าสู่ระบบหมดอายุ กรุณาเปิดระบบผ่าน LINE อีกครั้ง')
-  if (!response.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
-  return response.json()
+  if (!response.ok) throw new Error(data.detail || 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่')
+  return data
 }
 
 async function loadAccount() {
