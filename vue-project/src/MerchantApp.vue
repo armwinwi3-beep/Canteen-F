@@ -12,7 +12,7 @@ const products = ref<Product[]>([]), orders = ref<Order[]>([]), tab = ref<'order
 const name = ref(''), price = ref<number | null>(null), cost = ref<number>(0), stock = ref<number>(0), tracking = ref(false)
 const editingId = ref<string | null>(null), busy = ref(false), error = ref(''), message = ref('')
 const activeOrders = computed(() => orders.value.filter(o => o.status === 'pending' || o.status === 'cooking'))
-const reportDay=ref(new Date().toISOString().slice(0,10)),report=ref<any>(null),expenseDescription=ref(''),expenseAmount=ref<number|null>(null)
+const reportDay=ref(new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())),report=ref<any>(null),expenseDescription=ref(''),expenseAmount=ref<number|null>(null)
 
 function readSession(): Session | null { try { return JSON.parse(localStorage.getItem('canteen_merchant_session') || 'null') } catch { return null } }
 function saveSession(value: Session | null) { value ? localStorage.setItem('canteen_merchant_session', JSON.stringify(value)) : localStorage.removeItem('canteen_merchant_session') }
