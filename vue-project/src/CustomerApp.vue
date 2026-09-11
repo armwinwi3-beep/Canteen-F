@@ -4,7 +4,7 @@ import liff from '@line/liff'
 
 type Customer = { id: string; display_name: string; picture_url: string | null; role: 'customer' }
 type Store = { id: string; name: string; is_open: boolean; queue_count: number }
-type Product = { id: string; name: string; price: number; stock: number; is_tracking: boolean }
+type Product = { id: string; name: string; price: number; stock: number; is_tracking: boolean; image_url: string|null }
 
 const customer = ref<Customer | null>(null)
 const stores = ref<Store[]>([])
@@ -13,15 +13,18 @@ const products = ref<Product[]>([])
 const busy = ref(false)
 const message = ref('')
 const ready = ref(false)
+const cart = ref<Record<string, number>>({})
+const orderResult = ref('')
 const liffId = import.meta.env.VITE_LIFF_ID?.trim()
 const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
 const pageTitle = computed(() => selectedStore.value ? selectedStore.value.name : 'เลือกร้านอาหาร')
 
-async function api(path: string) {
+async function api(path: string, options: { method?: string; body?: string } = {}) {
   const token = liff.getIDToken()
   if (!token) throw new Error('กรุณาเปิดระบบผ่าน LINE อีกครั้ง')
   const response = await fetch(`${apiUrl}${path}`, {
-    headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(15000),
+    method: options.method || 'GET', body: options.body,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15000),
   })
   if (response.status === 401) throw new Error('การเข้าสู่ระบบหมดอายุ กรุณาเปิดระบบผ่าน LINE อีกครั้ง')
   if (!response.ok) throw new Error('โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่')
@@ -45,7 +48,11 @@ async function openStore(store: Store) {
   finally { busy.value = false }
 }
 
-function backToStores() { selectedStore.value = null; products.value = []; message.value = '' }
+function backToStores() { selectedStore.value = null; products.value = []; cart.value = {}; message.value = '' }
+const cartCount = computed(() => Object.values(cart.value).reduce((a,b)=>a+b,0))
+const cartTotal = computed(() => products.value.reduce((sum,p)=>sum+(cart.value[p.id]||0)*Number(p.price),0))
+function changeQty(product: Product, delta: number) { const next=(cart.value[product.id]||0)+delta; if(next<=0) delete cart.value[product.id]; else if(!product.is_tracking||next<=product.stock) cart.value[product.id]=next }
+async function placeOrder() { if(!selectedStore.value||!cartCount.value)return; busy.value=true;message.value='';try{const data=await api('/customer/orders',{method:'POST',body:JSON.stringify({store_id:selectedStore.value.id,items:Object.entries(cart.value).map(([product_id,qty])=>({product_id,qty}))})});orderResult.value=`สั่งอาหารสำเร็จ เลขออเดอร์ ${data.order.order_code}`;cart.value={}}catch(error){message.value=error instanceof Error?error.message:'สั่งอาหารไม่สำเร็จ'}finally{busy.value=false} }
 
 async function start() {
   busy.value = true; message.value = ''
@@ -96,12 +103,15 @@ onMounted(start)
 
       <div v-else class="product-list">
         <article v-for="product in products" :key="product.id" class="product-card">
-          <div><h2>{{ product.name }}</h2><p>฿{{ Number(product.price).toFixed(0) }}</p></div>
+          <img v-if="product.image_url" :src="product.image_url" class="product-image" alt="" /><div><h2>{{ product.name }}</h2><p>฿{{ Number(product.price).toFixed(0) }}</p></div>
           <span v-if="product.is_tracking" :class="['stock', { out: product.stock <= 0 }]">
             {{ product.stock > 0 ? `เหลือ ${product.stock}` : 'หมด' }}
           </span>
+          <div class="qty"><button @click="changeQty(product,-1)">−</button><b>{{cart[product.id]||0}}</b><button :disabled="product.is_tracking&&product.stock<=0" @click="changeQty(product,1)">+</button></div>
         </article>
         <div v-if="products.length === 0" class="empty">ร้านนี้ยังไม่มีเมนูอาหาร</div>
+        <div v-if="orderResult" class="success">{{orderResult}}</div>
+        <div v-if="cartCount" class="cart-bar"><span>{{cartCount}} รายการ · ฿{{cartTotal.toFixed(0)}}</span><button @click="placeOrder" :disabled="busy">ยืนยันสั่งอาหาร</button></div>
       </div>
     </section>
     <footer>ระบบใหม่ · Vue + FastAPI + Supabase</footer>
