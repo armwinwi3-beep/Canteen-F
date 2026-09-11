@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import liff from '@line/liff'
 
 type Customer = { id: string; display_name: string; picture_url: string | null; role: 'customer' }
 type Store = { id: string; name: string; is_open: boolean; queue_count: number }
 type Product = { id: string; name: string; price: number; stock: number; is_tracking: boolean; image_url: string|null }
+type OrderItem = { id: string; name: string; qty: number; price: number }
+type CustomerOrder = { id: string; order_code: string; store_name: string; total_price: number; status: string; created_at: string; items: OrderItem[] }
 
 const customer = ref<Customer | null>(null)
 const stores = ref<Store[]>([])
@@ -15,9 +17,14 @@ const message = ref('')
 const ready = ref(false)
 const cart = ref<Record<string, number>>({})
 const orderResult = ref('')
+const orders = ref<CustomerOrder[]>([])
+const view = ref<'catalog'|'orders'>('catalog')
+let orderTimer: number | undefined
 const liffId = import.meta.env.VITE_LIFF_ID?.trim()
 const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
-const pageTitle = computed(() => selectedStore.value ? selectedStore.value.name : 'เลือกร้านอาหาร')
+const pageTitle = computed(() => view.value === 'orders' ? 'คำสั่งซื้อของฉัน' : selectedStore.value ? selectedStore.value.name : 'เลือกร้านอาหาร')
+const activeOrderCount = computed(() => orders.value.filter(order => order.status === 'pending' || order.status === 'cooking').length)
+const statusText: Record<string,string> = { pending:'รอร้านรับออเดอร์', cooking:'ร้านกำลังทำอาหาร', completed:'รับอาหารได้แล้ว', cancelled:'ยกเลิกแล้ว' }
 
 async function api(path: string, options: { method?: string; body?: string } = {}) {
   const token = liff.getIDToken()
@@ -37,7 +44,12 @@ async function loadAccount() {
   customer.value = data.customer
   const catalog = await api('/customer/stores')
   stores.value = catalog.stores
+  await loadOrders()
 }
+
+async function loadOrders() { const data = await api('/customer/orders'); orders.value = data.orders }
+function showOrders(){view.value='orders';selectedStore.value=null;message.value='';loadOrders().catch(error=>{message.value=error instanceof Error?error.message:'โหลดคำสั่งซื้อไม่สำเร็จ'})}
+function showCatalog(){view.value='catalog';selectedStore.value=null;products.value=[];message.value=''}
 
 async function openStore(store: Store) {
   busy.value = true; message.value = ''
@@ -53,20 +65,21 @@ function backToStores() { selectedStore.value = null; products.value = []; cart.
 const cartCount = computed(() => Object.values(cart.value).reduce((a,b)=>a+b,0))
 const cartTotal = computed(() => products.value.reduce((sum,p)=>sum+(cart.value[p.id]||0)*Number(p.price),0))
 function changeQty(product: Product, delta: number) { const next=(cart.value[product.id]||0)+delta; if(next<=0) delete cart.value[product.id]; else if(!product.is_tracking||next<=product.stock) cart.value[product.id]=next }
-async function placeOrder() { if(!selectedStore.value||!cartCount.value)return; busy.value=true;message.value='';try{const data=await api('/customer/orders',{method:'POST',body:JSON.stringify({store_id:selectedStore.value.id,items:Object.entries(cart.value).map(([product_id,qty])=>({product_id,qty}))})});orderResult.value=`สั่งอาหารสำเร็จ เลขออเดอร์ ${data.order.order_code}`;cart.value={}}catch(error){message.value=error instanceof Error?error.message:'สั่งอาหารไม่สำเร็จ'}finally{busy.value=false} }
+async function placeOrder() { if(!selectedStore.value||!cartCount.value)return; busy.value=true;message.value='';try{const data=await api('/customer/orders',{method:'POST',body:JSON.stringify({store_id:selectedStore.value.id,items:Object.entries(cart.value).map(([product_id,qty])=>({product_id,qty}))})});orderResult.value=`สั่งอาหารสำเร็จ เลขออเดอร์ ${data.order.order_code}`;cart.value={};await loadOrders();view.value='orders';selectedStore.value=null}catch(error){message.value=error instanceof Error?error.message:'สั่งอาหารไม่สำเร็จ'}finally{busy.value=false} }
 
 async function start() {
   busy.value = true; message.value = ''
   try {
     if (!liffId || !apiUrl) throw new Error('ระบบยังตั้งค่าไม่ครบ')
     await liff.init({ liffId }); ready.value = true
-    if (liff.isLoggedIn()) await loadAccount()
+    if (liff.isLoggedIn()) { await loadAccount(); orderTimer=window.setInterval(()=>loadOrders().catch(()=>{}),8000) }
   } catch (error) { message.value = error instanceof Error ? error.message : 'เปิดระบบไม่สำเร็จ' }
   finally { busy.value = false }
 }
 
 function login() { if (ready.value) liff.login({ redirectUri: window.location.origin + '/' }) }
 onMounted(start)
+onUnmounted(()=>{if(orderTimer)window.clearInterval(orderTimer)})
 </script>
 
 <template>
@@ -89,10 +102,19 @@ onMounted(start)
 
     <section v-else class="content">
       <div class="greeting"><span>สวัสดี</span><strong>{{ customer.display_name }}</strong></div>
+      <nav class="customer-tabs"><button :class="{active:view==='catalog'}" @click="showCatalog">สั่งอาหาร</button><button :class="{active:view==='orders'}" @click="showOrders">คำสั่งซื้อของฉัน <span v-if="activeOrderCount">{{activeOrderCount}}</span></button></nav>
       <h1 class="section-title">{{ pageTitle }}</h1>
       <p v-if="message" role="alert" class="error">{{ message }}</p>
       <div v-if="busy" class="notice">กำลังโหลด…</div>
 
+      <div v-else-if="view==='orders'" class="customer-orders">
+        <article v-for="order in orders" :key="order.id" class="customer-order-card card">
+          <header><div><strong>{{order.order_code}}</strong><small>{{order.store_name}}</small></div><span :class="['order-status',order.status]">{{statusText[order.status]||order.status}}</span></header>
+          <ul><li v-for="item in order.items" :key="item.id"><span>{{item.qty}} × {{item.name}}</span><span>฿{{Number(item.qty*item.price).toFixed(0)}}</span></li></ul>
+          <footer><small>{{new Date(order.created_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})}}</small><b>รวม ฿{{Number(order.total_price).toFixed(0)}}</b></footer>
+        </article>
+        <div v-if="orders.length===0" class="empty">ยังไม่มีคำสั่งซื้อ</div>
+      </div>
       <div v-else-if="!selectedStore" class="store-list">
         <button v-for="store in stores" :key="store.id" class="store-card" @click="openStore(store)">
           <span class="store-icon">⌂</span>
