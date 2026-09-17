@@ -8,6 +8,7 @@ const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
 const loginUsername = ref('admin'), password = ref('')
 const staff = ref<Staff | null>(null), stores = ref<Store[]>([])
 const storeName = ref(''), storeUsername = ref(''), merchantPassword = ref('')
+const currentPassword = ref(''), newPassword = ref(''), confirmPassword = ref('')
 const busy = ref(false), message = ref(''), error = ref('')
 
 function session(): Session | null {
@@ -65,6 +66,19 @@ async function toggle(store: Store) {
   } catch (e) { error.value = e instanceof Error ? e.message : 'เปลี่ยนสถานะร้านไม่สำเร็จ' }
   finally { busy.value = false }
 }
+async function changePassword() {
+  error.value = ''; message.value = ''
+  if (newPassword.value !== confirmPassword.value) { error.value = 'ยืนยันรหัสผ่านใหม่ไม่ตรงกัน'; return }
+  busy.value = true
+  try {
+    await api('/staff/password', { method: 'POST', body: JSON.stringify({
+      current_password: currentPassword.value, new_password: newPassword.value,
+    }) })
+    currentPassword.value = ''; newPassword.value = ''; confirmPassword.value = ''
+    message.value = 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว'
+  } catch (e) { error.value = e instanceof Error ? e.message : 'เปลี่ยนรหัสผ่านไม่สำเร็จ' }
+  finally { busy.value = false }
+}
 function logout() { save(null); staff.value = null; stores.value = []; error.value = ''; message.value = '' }
 onMounted(async () => {
   if (!apiUrl) { error.value = 'ระบบยังตั้งค่าไม่ครบ'; return }
@@ -114,6 +128,15 @@ onMounted(async () => {
               {{ store.is_open ? 'เปิดร้าน' : 'ปิดร้าน' }}
             </button>
           </article>
+        </section>
+        <section class="card create-card">
+          <h2>เปลี่ยนรหัสผ่านแอดมิน</h2><p>ใช้ชื่อผู้ใช้เดิมว่า admin และกำหนดรหัสผ่านใหม่ได้ที่นี่</p>
+          <form @submit.prevent="changePassword">
+            <label>รหัสผ่านปัจจุบัน<input v-model="currentPassword" type="password" minlength="8" required autocomplete="current-password" /></label>
+            <label>รหัสผ่านใหม่<input v-model="newPassword" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <label>ยืนยันรหัสผ่านใหม่<input v-model="confirmPassword" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <button class="primary" :disabled="busy">{{ busy ? 'กำลังเปลี่ยน…' : 'เปลี่ยนรหัสผ่าน' }}</button>
+          </form>
         </section>
       </div>
     </template>
