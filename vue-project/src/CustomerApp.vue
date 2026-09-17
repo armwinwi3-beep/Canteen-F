@@ -13,6 +13,7 @@ const stores = ref<Store[]>([])
 const selectedStore = ref<Store | null>(null)
 const products = ref<Product[]>([])
 const busy = ref(false)
+const busyText = ref('กำลังเชื่อมต่อบัญชี…')
 const message = ref('')
 const ready = ref(false)
 const cart = ref<Record<string, number>>({})
@@ -29,10 +30,24 @@ const statusText: Record<string,string> = { pending:'รอร้านรับ
 async function api(path: string, options: { method?: string; body?: string } = {}) {
   const token = liff.getIDToken()
   if (!token) throw new Error('กรุณาเปิดระบบผ่าน LINE อีกครั้ง')
-  const response = await fetch(`${apiUrl}${path}`, {
-    method: options.method || 'GET', body: options.body,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(15000),
-  })
+  const method = options.method || 'GET'
+  const attempts = method === 'GET' ? 3 : 1
+  let response: Response | undefined
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      response = await fetch(`${apiUrl}${path}`, {
+        method, body: options.body,
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        cache: 'no-store', signal: AbortSignal.timeout(30000),
+      })
+      break
+    } catch (error) {
+      if (attempt === attempts) throw new Error('เซิร์ฟเวอร์กำลังเริ่มทำงาน กรุณารอสักครู่แล้วลองอีกครั้ง')
+      busyText.value = 'กำลังเปิดระบบ อาจใช้เวลาประมาณ 1 นาที…'
+      await new Promise(resolve => window.setTimeout(resolve, 1500))
+    }
+  }
+  if (!response) throw new Error('ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองอีกครั้ง')
   const data = await response.json().catch(() => ({}))
   if (response.status === 401) throw new Error('การเข้าสู่ระบบหมดอายุ กรุณาเปิดระบบผ่าน LINE อีกครั้ง')
   if (!response.ok) throw new Error(data.detail || 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่')
@@ -68,7 +83,7 @@ function changeQty(product: Product, delta: number) { const next=(cart.value[pro
 async function placeOrder() { if(!selectedStore.value||!cartCount.value)return; busy.value=true;message.value='';try{const data=await api('/customer/orders',{method:'POST',body:JSON.stringify({store_id:selectedStore.value.id,items:Object.entries(cart.value).map(([product_id,qty])=>({product_id,qty}))})});orderResult.value=`สั่งอาหารสำเร็จ เลขออเดอร์ ${data.order.order_code}`;cart.value={};await loadOrders();view.value='orders';selectedStore.value=null}catch(error){message.value=error instanceof Error?error.message:'สั่งอาหารไม่สำเร็จ'}finally{busy.value=false} }
 
 async function start() {
-  busy.value = true; message.value = ''
+  busy.value = true; busyText.value = 'กำลังเชื่อมต่อบัญชี…'; message.value = ''
   try {
     if (!liffId || !apiUrl) throw new Error('ระบบยังตั้งค่าไม่ครบ')
     await liff.init({ liffId }); ready.value = true
@@ -94,7 +109,7 @@ onUnmounted(()=>{if(orderTimer)window.clearInterval(orderTimer)})
       <span class="eyebrow">มื้ออร่อย เริ่มที่นี่</span>
       <h1>โรงอาหาร<br />ในมือคุณ</h1>
       <p class="intro">เชื่อมต่อบัญชี LINE เพื่อเลือกร้านและดูเมนูอาหาร</p>
-      <p v-if="busy" class="notice">กำลังเชื่อมต่อบัญชี…</p>
+      <p v-if="busy" class="notice">{{ busyText }}</p>
       <p v-else-if="message" role="alert" class="error">{{ message }}</p>
       <button v-if="ready && !liff.isLoggedIn()" class="primary" @click="login">เข้าสู่ระบบด้วย LINE</button>
       <button v-else-if="!busy && message" class="primary" @click="start">ลองอีกครั้ง</button>
